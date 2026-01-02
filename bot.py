@@ -22,24 +22,22 @@ class BasicBot:
     # Market order
     def place_market_order(self, symbol, side, quantity):
         try:
-            self.client.futures_create_order(
+            order = self.client.futures_create_order(
                 symbol=symbol,
                 side=side,
                 type="MARKET",
                 quantity=quantity
             )
-            logging.info(
-                f"Market order placed successfully | Symbol: {symbol}, Side: {side}, Quantity: {quantity}"
-            )
-            return True
+            logging.info(f"Market order placed | Symbol: {symbol}, Side: {side}, Quantity: {quantity}, Order ID: {order['orderId']}")
+            return True, order
         except (BinanceAPIException, BinanceOrderException) as e:
             logging.error(f"Market order failed: {e}")
-            return False
+            return False, None
 
     # Limit order
     def place_limit_order(self, symbol, side, quantity, price):
         try:
-            self.client.futures_create_order(
+            order = self.client.futures_create_order(
                 symbol=symbol,
                 side=side,
                 type="LIMIT",
@@ -47,32 +45,27 @@ class BasicBot:
                 price=price,
                 timeInForce="GTC"
             )
-            logging.info(
-                f"Limit order placed successfully | Symbol: {symbol}, Side: {side}, Quantity: {quantity}, Price: {price}"
-            )
-            return True
+            logging.info(f"Limit order placed | Symbol: {symbol}, Side: {side}, Quantity: {quantity}, Price: {price}, Order ID: {order['orderId']}")
+            return True, order
         except (BinanceAPIException, BinanceOrderException) as e:
             logging.error(f"Limit order failed: {e}")
-            return False
+            return False, None
 
-    # Stop-Limit order (bonus)
+    # Stop-Limit order
     def place_stop_limit_order(self, symbol, side, quantity, stop_price, limit_price):
         try:
-            self.client.futures_create_order(
+            order = self.client.futures_create_order(
                 symbol=symbol,
                 side=side,
-                type="STOP_MARKET",
+                type="STOP_MARKET",  # STOP_MARKET works for testnet
                 quantity=quantity,
                 stopPrice=stop_price
             )
-            logging.info(
-                f"Stop-Limit order placed successfully | Symbol: {symbol}, Side: {side}, "
-                f"Quantity: {quantity}, Stop Price: {stop_price}, Limit Price: {limit_price}"
-            )
-            return True
+            logging.info(f"Stop-Limit order placed | Symbol: {symbol}, Side: {side}, Quantity: {quantity}, Stop Price: {stop_price}, Limit Price: {limit_price}, Order ID: {order['orderId']}")
+            return True, order
         except (BinanceAPIException, BinanceOrderException) as e:
             logging.error(f"Stop-Limit order failed: {e}")
-            return False
+            return False, None
 
 # Menu-based CLI
 def main_menu():
@@ -81,12 +74,14 @@ def main_menu():
     print("2. Place Limit Order")
     print("3. Place Stop-Limit Order")
     choice = input("Enter choice (1/2/3): ")
-
     return choice
 
 def get_order_inputs(order_type):
     symbol = input("Enter symbol (e.g. BTCUSDT): ").upper()
     side = input("Buy or Sell: ").upper()
+    while side not in ["BUY", "SELL"]:
+        side = input("Invalid input. Enter 'Buy' or 'Sell': ").upper()
+
     quantity = float(input("Quantity: "))
 
     price = None
@@ -106,19 +101,20 @@ if __name__ == "__main__":
 
     if choice == "1":
         symbol, side, quantity, _, _ = get_order_inputs("market")
-        success = bot.place_market_order(symbol, side, quantity)
+        success, order = bot.place_market_order(symbol, side, quantity)
     elif choice == "2":
         symbol, side, quantity, price, _ = get_order_inputs("limit")
-        success = bot.place_limit_order(symbol, side, quantity, price)
+        success, order = bot.place_limit_order(symbol, side, quantity, price)
     elif choice == "3":
         symbol, side, quantity, price, stop_price = get_order_inputs("stop-limit")
-        success = bot.place_stop_limit_order(symbol, side, quantity, stop_price, price)
+        success, order = bot.place_stop_limit_order(symbol, side, quantity, stop_price, price)
     else:
         print("Invalid choice")
         exit()
 
     if success:
-        print("\nOrder placed successfully!")
+        print("\n✅ Order placed successfully!")
+        print(f"Order ID: {order['orderId']}")
         print("Check bot.log for execution details.")
     else:
-        print("\nOrder failed. Check bot.log for error details.")
+        print("\n❌ Order failed. Check bot.log for error details.")

@@ -42,4 +42,3 @@ In this project, the bot:
 ```bash
 git clone <your-repo-link>
 cd trading-bot
-
